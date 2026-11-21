@@ -12,7 +12,7 @@ B) Populate them together; include a project summary, target users, problem, mai
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]:
+[Answer]: A. We have filled in the required documents that you should read from.
 
 ## Question 2: Technical decisions
 
@@ -24,7 +24,7 @@ B) Record an existing agreed stack; list languages, frameworks, data services, h
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]:
+[Answer]: A. Technology choices can now be seen in the technical-environment.md document.
 
 ## Question 3: Security Extensions
 
@@ -36,7 +36,7 @@ B) No - skip all SECURITY rules (suitable for PoCs, prototypes, and experimental
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]:
+[Answer]: Other. Security rules should be standard for prototypes, which is what our MVP product is.
 
 ## Question 4: Resiliency Extensions
 
@@ -50,7 +50,7 @@ B) No - skip the resiliency baseline (suitable for PoCs, prototypes, and experim
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]:
+[Answer]: B. Skip the baseline for now, since this is a prototype model.
 
 ## Question 5: Property-Based Testing Extension
 
@@ -64,4 +64,4 @@ C) No - skip all PBT rules (suitable for simple CRUD applications, UI-only proje
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]: 
+[Answer]: B. Partial. PBT rules should only be introduced for certain function tests, where non-PBT tests might be difficult to create. When in doubt as to which style of test to write, ask before writing.

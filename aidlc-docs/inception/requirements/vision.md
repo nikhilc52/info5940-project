@@ -52,7 +52,7 @@ AIdvisor interviews a student about their major, interests, and background, retr
 - **Description**: Learns who the student is and what they already know, through conversation instead of forms.
 - **Key Capabilities**:
   - Interview for major, minors, interests, career goals, completed courses, and preferences (credit load, time of day, max difficulty)
-  - Short placement quizzes that place the student into the right course in a sequence
+  - Placement quizzes of 10–15 multiple-choice questions that take about 10 minutes for someone experienced with the subject and place the student into the right course in a sequence
 - **User Value**: Recommendations fit the student's actual background and goals, not a generic template.
 
 
@@ -112,7 +112,7 @@ The MVP state AIdvisor integrates with the following external systems and data s
 #### Journey 1: First-Year Student Builds a Two-Year Plan
 1. A first-year Information Science student opens the chat and says they want a data science career, plan to minor in Economics and Philosophy, know some R, and have no Python.
 2. The agent interviews them about completed courses from HS, credit load, time-of-day preference, and a maximum CU Reviews difficulty of 4.0.
-3. Because their Python background is unclear, the agent offers a 3-5 question placement quiz and uses the result to choose the starting programming course.
+3. Because their Python background is unclear, the agent offers a 10–15 question multiple-choice placement quiz designed to take about 10 minutes for someone experienced with the subject and uses the result to choose the starting programming course.
 4. The agent calls the roster, CU Reviews, and program-requirement tools, then filters out courses that fail the student's constraints or have prerequisite problems and forbidden overlaps.
 5. The agent returns a projected four-semester plan, with each course tied to the requirement it satisfies, its rating, and a cited rationale.
 6. The student asks to swap a course, and the agent revises the plan and rechecks it.
@@ -147,7 +147,7 @@ The MVP state AIdvisor integrates with the following external systems and data s
 | Course filtering | Filters roster offerings by credits, subject, level, semester, and time of day through parameterized roster API calls | Must Have | Replaces manual roster searching and gives the agent its main retrieval tool |
 | Course and instructor reviews | Retrieves CU Reviews metrics (quality, difficulty, workload) for a course and its instructors, and summarizes sentiment from individual reviews | Must Have | Review-based constraints are a key differentiator from existing planners |
 | Program requirement fulfillment | Determines which courses count toward a major or minor, using a curated set of requirements for all undergraduate programs listed in Cornell's catalog | Must Have | Plans must satisfy real degree requirements to be useful |
-| Placement quizzes | Generates a short quiz (3-5 questions) on a foundational concept to place the student into the right course in a sequence, with the reasoning shown | Must Have | Handles unclear prior knowledge, a gap that existing tools do not address |
+| Placement quizzes | Generates a 10–15 question multiple-choice quiz on a foundational concept, designed to take about 10 minutes for someone experienced with the subject, to place the student into the right course in a sequence, with the reasoning shown | Must Have | Handles unclear prior knowledge, a gap that existing tools do not address |
 | Multi-semester planning | Generates a plan for up to 4 semesters (2 years) for one or more majors plus several minors, with each recommendation justified by retrieved data | Must Have | The central deliverable of the product (may extend to 8 semesters, if possible) |
 | Plan refinement | Lets the student adjust the plan in conversation (swap a course, change constraints, ask why) and re-checks the result | Should Have | Students rarely accept a first plan unchanged |
 | Grounding and citations | Every course, requirement, and rating comes from a tool result and is cited with its source; unverifiable claims are labeled as unverified | Must Have | Accuracy is the most important success metric for academic plans |
