@@ -12,7 +12,7 @@ B) Populate them together; include a project summary, target users, problem, mai
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]: A. We have now completed the two required documents.
+[Answer]:
 
 ## Question 2: Technical decisions
 
@@ -24,7 +24,7 @@ B) Record an existing agreed stack; list languages, frameworks, data services, h
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]: A. We've included technical environment details in the corresponding document (technical-environment.md).
+[Answer]:
 
 ## Question 3: Security Extensions
 
@@ -36,7 +36,7 @@ B) No - skip all SECURITY rules (suitable for PoCs, prototypes, and experimental
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]: Other. You should enforce the security extension rules listed out, but do not that this will not be pushed into production.
+[Answer]:
 
 ## Question 4: Resiliency Extensions
 
@@ -50,7 +50,7 @@ B) No - skip the resiliency baseline (suitable for PoCs, prototypes, and experim
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]: No. This is a prototype model. However, maybe we should bring this up later on, during the construction phase, if it may seem useful at that point.
+[Answer]:
 
 ## Question 5: Property-Based Testing Extension
 
@@ -64,4 +64,4 @@ C) No - skip all PBT rules (suitable for simple CRUD applications, UI-only proje
 
 X) Other (please describe after [Answer]: tag below).
 
-[Answer]: Yes. PBT should be used alongside the described tests in technical-environment.md, unless otherwise stated.
+[Answer]: 
