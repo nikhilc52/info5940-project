@@ -1,284 +1,415 @@
-# Technical Environment: Cornell Course Advising LLM
+# Technical Environment: Course AIdvisor Application
+
+## Project Technical Summary
+
+- **Project Name**: Course AIdvisor
+- **Project Type**: Greenfield
+- **Primary Runtime Environment**: Local only. The product runs on each team member's laptop (a Streamlit app plus a local Ollama server) and is not hosted on any server.
+- **Cloud Provider**: None.
+- **Target Deployment Model**: Local processes started from the command line. There are no containers, VMs, or serverless functions, and setup is a documented install and run command sequence.
+- **Team Size**: 5 university student developers
+- **Team Experience**: Very experienced with Python and basic web/API development. Limited prior experience with agentic LLM techniques (tool calling and chatbot interfaces), which we were introduced to in class.
+
+## Programming Languages
+
+### Required Languages
+
+| Language | Version | Purpose | Rationale |
+|----------|---------|---------|-----------|
+| Python | 3.12+ | Entire application: Streamlit UI, agent loop, tool wrappers for the roster, CU Reviews, and catalog APIs, requirements encoding, and tests | Team expertise, first-class Ollama client and Streamlit support, and a single language keeps a 5-person team consistent |
+
+### Permitted Languages
+
+| Language | Conditions for Use |
+|----------|-------------------|
+| Bash/POSIX shell | Setup and run scripts only (for example, pulling the model and starting the app). Keep scripts short and documented |
+| JSON/YAML | Data formats (not programming languages) for the test fixtures |
 
 
-## Language and Package Manager
+### Prohibited Languages
 
+| Language | Reason |
+|----------|--------|
+| JavaScript / TypeScript | Streamlit removes the need for a separate frontend, and a second stack would add setup and review overhead for our small team |
 
-- **Python 3.12+** for backend, integrations, filters, and LLM orchestration.
-- **uv** to manage dependencies, create the development environment, and run tests.
-- Use `pyproject.toml` for package/tool configuration; commit `uv.lock` for reproducibility.
-- Use standard Python type hints and **Pydantic v2** models for input, source records, and response validation.
+## Frameworks and Libraries
 
+### Package Manager
 
-## Application Framework and User Interface
+| Tool | Version | Purpose | Rationale |
+|------|---------|---------|-----------|
+| uv | Latest stable | Dependency management, virtual environments, Python version management, and running commands | Fast, one tool for installs and environments, and a lockfile gives every teammate identical dependencies on macOS, Windows, and Linux |
 
+- **Dependency file**: `pyproject.toml` lists direct dependencies, with exact versions pinned. `uv.lock` is committed so every teammate gets the same environment.
+- **Python version**: Python 3.12 is pinned in `.python-version`, and `uv` installs it if it is missing.
+- **Setup**: `uv sync` creates `.venv` and installs everything.
 
-- **FastAPI** provides a local backend, typed request/response schemas, and OpenAPI endpoints.
-- **Streamlit** provides a simple local chatbot interface and course-result tables, avoiding unnecessary front-end complexity for the MVP.
-- **httpx** provides asynchronous HTTP requests for Cornell and permitted third-party data-source integrations.
-- **Beautiful Soup 4** parses relevant, publicly accessible Cornell Program Catalog HTML pages.
-- The app separates display, data acquisition, deterministic filtering, LLM orchestration, and evidence formatting into testable modules.
+### Required Frameworks
 
+| Framework/Library | Version | Domain | Rationale |
+|-------------------|---------|--------|-----------|
+| Streamlit | 1.46 | Chat UI (`st.chat_message`, `st.chat_input`) | Pure-Python chat interface, so no separate frontend or API layer is needed to run locally |
+| ollama (Python client) | 0.40 | LLM access | Official client for the local Ollama server, with native tool-calling support for `qwen3:8b` |
+| Pydantic | 2.12 | Data models and validation | Validates API responses, tool arguments, and requirement files, which prevents bad data reaching the agent |
+| httpx | 0.28 | HTTP client | One HTTP client for the roster, CU Reviews, and catalog calls, with timeouts and easy mocking in tests |
+| pytest | 9.2 | Unit and integration testing | Standard Python test runner, with fixtures for mocked API responses |
 
-## LLM Provider, Model, and Agent Design
+### Preferred Libraries
 
+| Library | Purpose | Use When |
+|---------|---------|----------|
+| Beautiful Soup 4 (with lxml) | HTML parsing | Extracting program requirements from the Cornell catalog pages |
+| respx | Mocking httpx calls | Unit tests for API tool wrappers, so tests never call Cornell or CU Reviews |
 
-- **Provider:** Ollama, running locally on a team laptop.
-- **Planned model:** `lfm3` (LFM3-1.7B), loaded through Ollama's local chat API at `http://localhost:11434`.
-- **Why this choice:** This compact open model is intended for local-agent/tool-use and structured-output tasks; local execution avoids per-request hosted inference costs and supports an offline model runtime. It still needs network access to fetch current Cornell and review/catalog data.
-- **Limitations:** LFM3's small size can struggle with complex multi-step reasoning. The application will not rely on the model to do exact timetable arithmetic, numerical comparisons, or official program-rule verification. The team must test tool-calling reliability early and can use a **deterministic orchestrator fallback** if model-driven tool selection is unreliable.
+### Prohibited Libraries
 
+| Library | Reason | Alternative |
+|---------|--------|-------------|
+| requests, aiohttp | A second HTTP client would split mocking and error handling | httpx |
+| Selenium, Playwright | Browser automation is slow, brittle | httpx with Beautiful Soup |
+| OpenAI, Anthropic, or other hosted-LLM SDKs | Unplanned vendor lock-in or API key spending is not allowed | The `ollama` client |
+| unittest (as the test runner), nose | Mixed test styles make tests harder to read and maintain | pytest |
 
-**Agent/tool flow:**
+### Library Approval Process
 
+- Any library not on the required or preferred lists must be proposed in the team chat or at a team session with its purpose and why a listed library will not work.
+- A majority of the five members approves it. The approval is recorded in the AI-DLC workflow, and the library is added to the dependency file with a pinned version.
+- New libraries must not require API keys, paid tiers, or cloud accounts.
 
-1. Parse student request into a validated intent object (term, subjects, level, constraints, interests, and requested sources).
-2. Select and invoke approved tools such as `search_roster_courses`, `get_course_reviews`, `get_program_requirements`, and `check_schedule_conflicts`.
-3. Normalize external responses and run exact filters, comparisons, and conflict calculations in Python.
-4. Supply only relevant source excerpts, links, and filtered candidates to Ollama for explanation and summarization.
-5. Validate the resulting answer against retrieved course identifiers and source availability. Include unknowns and source links rather than inventing information.
+## Cloud Environment
 
+### Cloud Provider
+- **Primary Provider**: None. The product runs entirely locally and is not deployed to any cloud.
+- **Account Structure**: Not applicable. No cloud accounts are created or required.
+- **Regions**: Not applicable.
 
-Restrict available tools, arguments, request counts, and domains. Set a small maximum tool-call iteration count and reject unsupported tool requests.
+**How it runs locally**: A local web app built with Streamlit calls a Python agent loop on the same machine. The agent calls `qwen3:8b` through a local Ollama server and calls public Cornell Class Roster, CU Reviews, and Cornell Programs Catalog endpoints over HTTPS for course data. Nothing is hosted, and no incoming network connections are required.
 
+### Service Allow List
+Only these local components and external endpoints may be used without approval.
 
-## Cloud Provider and Deployment Model
+| Service | Approved Use Cases | Constraints |
+|---------|-------------------|-------------|
+| Ollama (local server) | Running `qwen3:8b` for conversation, tool calling, summarization, and planning | Runs on localhost only, with the model pulled in advance. Not exposed to the network |
+| Streamlit (local server) | Chat UI | Runs on localhost only, started from the command line |
+| Cornell Class Roster API | Live course data | Public, read-only, no login. Respect rate limits |
+| CU Reviews endpoints (`get-by-info`, `get-reviews`) | Course and instructor ratings and reviews | Public, read-only, no login. |
+| Cornell Programs Catalog | Source for program requirements | Public pages only. |
 
+### Service Disallow List
 
-- **Cloud provider:** None required for MVP.
-- **Deployment:** Local-only web application on team laptops; no AWS, cloud database, or public server.
-- Run Ollama locally; start the FastAPI backend on `127.0.0.1:8000` and Streamlit on `127.0.0.1:8501`.
-- The backend connects to the local Ollama service and retrieves public web/API information over HTTPS.
-- A **small on-disk or in-memory cache** of public course/catalog metadata may speed repeat requests and reduce source load; the cache is not an authoritative source of current seat availability.
-- A network connection is needed for fresh external data, although test fixtures can support integration testing without network access.
+| Service | Reason | Alternative |
+|---------|--------|-------------|
+| Any cloud provider (AWS, Azure, GCP) | Not needed, since the product only has to run locally, and it adds cost and setup | Local processes on a laptop |
+| Hosted LLM APIs (OpenAI, Anthropic, Google, and similar) | Cost, API keys, and student data leaving the machine. | Ollama with a local model, possibly a larger one |
+| Hosting and deployment platforms (Streamlit Community Cloud, Heroku, Vercel, Docker registries) | Hosting is out of scope | Run locally for demos |
+| Services requiring a Cornell login or credentials | Out of scope and a security risk | None. Features that need a login are excluded |
 
+### Service Approval Process
 
-## External Data and Integration Contracts
+- Any service not on the allow list must be proposed in the team chat or at a team session with its purpose and why a listed service will not work.
+- A majority of the five members approves it. The approval is recorded in the AI-DLC workflow.
+- New services must not require API keys, paid tiers, or cloud accounts.
 
+## Security Requirements
 
-| Tool or adapter | Source | Intended behavior | Failure behavior |
-| --- | --- | --- | --- |
-| `search_roster_courses` | `https://classes.cornell.edu/api/2.0/search/classes.json` | Fetch courses for a supported term and optional subject/search filters; normalize course and enrollment-group fields | Return a source-unavailable state; never invent a course |
-| `get_course_reviews` | CUReviews public web/API source, contract to be validated | Retrieve available ratings/reviews for a course and, when supported, associated instructor | Return `reviews_unavailable`; do not assign a default difficulty score |
-| `get_program_requirements` | `https://catalog.cornell.edu/programs/` and selected program pages | Retrieve permitted public HTML and extract relevant requirement text, catalog year, and URL | Return `requirements_unverified` if page or rule is unclear |
-| `check_schedule_conflicts` | Normalized roster meetings and student-provided meetings | Compare meeting intervals on shared weekdays | Return `unknown` for TBA, missing or unparseable times |
+### Authentication and Authorization
+- **Authentication Method**: None. The app runs locally for one user at a time, and no accounts or logins exist. It never asks for, accepts, or stores Cornell credentials.
+- **Authorization Model**: Not applicable. All data the app reads is public, read-only, and fetched without a login.
+- **Token Format**: Not applicable. No tokens are issued or stored.
+- **Session Management**: One Streamlit session per browser tab. Student profile and plan live only in session memory and are discarded when the session ends. Nothing persists across sessions.
 
+### Secrets Management
+- **Secrets Storage**: The base MVP requires no secrets, since all endpoints are public and the model is local. Any configuration value (model name, Ollama URL) goes in a git-ignored `.env` file.
+- **Rotation Policy**: Not applicable, since no secrets are used.
+- **Access Policy**: Each developer uses their own local configuration. Keys are never shared in chat, issues, or commits.
+- **Prohibited Practices**:
+  - No secrets, keys, or credentials in source code, committed config, test fixtures
+  - No Cornell passwords or NetIDs requested, stored, or logged
+  - No shared credentials across teammates
+  - No committed `.env` files (enforced by `.gitignore`)
 
-**Cornell API requirements:** Follow official v2 API documentation and the stated **maximum one request per second**. For FA25 and newer rosters, parse separate `catalogPrereq` and `catalogCoreq` fields where provided instead of relying solely on the legacy `catalogPrereqCoreq`. Use `enrollGroup` and meeting-pattern data for timetable checks. Do not assume every course description is available or that all old fields remain populated.
+### Data Protection
+- **Encryption in Transit**: HTTPS (TLS 1.2+) for all calls to Cornell and CU Reviews endpoints, with certificate verification left on in `httpx`. Traffic between Streamlit, the agent, and Ollama stays on localhost.
+- **PII Handling**: The only student-provided data is academic information (major, minors, interests, completed courses, career goals). Students are told not to enter names, NetIDs, or other identifiers. The app does not ask for them and does not log chat contents beyond the local console during development. No student data is sent to any external service, including any LLM provider.
+- **Data Classification**: Course roster, review, and catalog data is Public. Student chat input is Confidential and stays in memory on the user's machine.
 
+### Security Compliance Framework
 
-**Third-party review integration:** The cited CUReviews URL has not yet established a complete, supported machine-readable contract. Confirm actual permitted endpoints, parameters, JSON shape, review attribution, rate limits, and usage conditions before implementing live requests. Keep this adapter replaceable; if an API is unavailable, disable live ratings or use explicitly labeled synthetic fixtures for tests, never present fake reviews as live data.
+- **Framework chosen**: OWASP Top 10 (2021), plus the OWASP Top 10 for LLM Applications as a supplement for the agent's prompt and tool risks.
+- **Rationale**: The product is a web application (Streamlit) that calls external APIs and processes untrusted text (review content and user input) through an LLM that can call tools. OWASP Top 10 is the standard for web applications, and the LLM supplement covers risks specific to agents. Hence, both are appropriate for this project.
 
+## Testing Requirements
 
-**Catalog retrieval:** Restrict requests to selected official `catalog.cornell.edu` URLs, respect site access restrictions and rate limits, cache responsibly, and store the page URL and relevant catalog-year context. A rules parser must not equate any casual mention of a course with confirmed program eligibility.
+### Test Strategy Overview
+| Test Type | Required | Coverage Target | Tooling |
+|-----------|----------|----------------|---------|
+| Unit Tests | Yes | 80% line coverage minimum (deterministic code: tools, validators, etc.) | pytest |
+| Integration Tests | Yes | Agent loop with a faked Ollama client and mocked HTTP APIs, covering every tool end to end | pytest |
+| End-to-End Tests | Conditional | The three MVP user journeys, through the Streamlit UI | Streamlit `AppTest` (`streamlit.testing.v1`), plus a manual demo run with live Ollama |
+| LLM Evaluation Tests | Yes | A scenario set of at least 15 realistic student scenarios, scored against the Key Success Metrics | pytest with the `live_llm` marker, run against local `qwen3:8b` |
+| Contract Tests | No | Not applicable. There are no inter-service APIs. External API response shapes are checked with fixtures and Pydantic models | Pydantic |
+| Performance Tests | Conditional | Response-time targets: lookups under 30 seconds, full plans under 180 seconds, on a typical team laptop | pytest timing checks (`live_llm`), measured manually before milestones |
+| Security Tests | Yes | Prompt-injection, input-validation, and secret-scanning checks | pytest |
 
+### Unit Testing Standards
+- **Coverage Minimum**: 80% line coverage and 70% branch coverage for deterministic code (tool wrappers, validators, etc.). LLM output quality is measured in the evaluation tests, not by coverage.
+- **Mocking Policy**: Mock external dependencies: the Ollama client and all HTTP calls to Cornell and CU Reviews. Do not mock internal logic such as the requirement matcher or plan validator.
+- **Naming Convention**: Files are `test_<module>.py` and functions are `test_<unit>_<behavior>_<condition>`, for example `test_check_prerequisites_flags_missing_course`.
+- **Test Location**: A separate `tests/` tree mirroring the source layout: `tests/unit/`, `tests/integration/`, `tests/e2e/`, `tests/llm_eval/`, and `tests/fixtures/` for recorded API responses and sample requirement files.
 
-## Testing and Quality Assurance
+### Integration Testing Standards
+- **Scope**: Run the real agent loop with a fake Ollama client that returns scripted tool calls. Verify that the right tool is called with valid arguments, that tool results are passed back correctly, and that the final answer cites its sources. Test failure handling: roster API timeout, CU Reviews unavailable, malformed responses, and unknown course codes.
+- **Environment**: Local only. HTTP is mocked with `respx`, and Ollama is faked.
+- **Data Management**: Fixtures in `tests/fixtures/` hold recorded roster responses, CU Reviews responses, and sample program requirements. Fixtures are version-controlled, contain only public data, and are refreshed deliberately, not automatically. Tests do not share mutable state.
 
+### End-to-End Testing Standards
+- **Scope**: The three MVP journeys only (first-year plan, upperclassman requirement check, course lookup with out-of-scope handoff).
+- **Environment**: Streamlit `AppTest` with the fake Ollama client for automated runs. 
+- **Data-testid Requirements**: Not applicable.
 
-- **pytest** for unit and integration tests; **pytest-cov** for coverage reporting (target **at least 80%** on deterministic service/integration logic).
-- **pytest-asyncio** for async HTTP/service tests.
-- **respx** for mocking httpx requests; use saved, sanitized fixtures to avoid unreliable network dependencies in tests.
-- **ruff** for linting and formatting, **mypy** for type checking.
-- **No AI-generated statement is accepted as a substitute for deterministic checks.** Test exact filtering and overlap logic separately from model-generated language.
-- Add a small evaluation set of representative student requests. Check whether retrieved courses match constraints, whether answers cite retrieved sources, and whether the assistant appropriately states unknowns.
+### LLM Evaluation Testing Standards
+- **Scenario set**: At least 15 scenarios in `tests/llm_eval/scenarios.yaml`, each with a student profile, a question, and expected checks. Include the Information Science + Economics + Philosophy example, an upperclassman finishing a minor, a single-course lookup, and out-of-scope questions.
+- **Checks (mapped to the Key Success Metrics)**:
+  - Grounding: every course in a response exists in the mocked or retrieved roster data (target 100%)
+  - Citations: every factual claim has a source (target 100%)
+  - Tool use: the expected tools are called for each scenario (target at least 95%)
+  - Out-of-scope handling: a "cannot answer" response with an advising link (target 100%)
 
+### Security Testing Standards
+- **Prompt injection**: At least one test feeds a review containing instructions such as "ignore previous instructions" and verifies the agent does not follow it, and does not call tools or change its behavior.
+- **Input validation**: Tests that malformed or hostile tool arguments (invalid subject codes, oversized values, URL-like strings) are rejected by the Pydantic models and never reach `httpx`.
 
-### Key Test Cases
+### Performance Testing Standards
+- **Baseline Requirements**: Lookups under 30 seconds and full multi-semester plans under 180 seconds on a typical team laptop
+- **Test Scenarios**: Timed runs of representative scenarios with `qwen3:8b`, recorded in the repository. No load testing, since the app serves one local user.
+- **Tooling**: pytest timing assertions under the `live_llm` marker, and manual timing for demos.
 
+### CI/CD Testing Gates
+The project has no deployment pipeline. 
 
-- Undergraduate INFO search filters out courses above the maximum requested level.
-- A course meeting from 10:00 to 11:15 on Monday conflicts with an existing Monday 11:00 to 12:00 meeting but not with a Tuesday-only meeting.
-- Back-to-back classes ending and starting at the same minute are not marked as overlapping.
-- An absent prerequisite field is treated as **unknown unless source semantics explicitly guarantee none**, not as evidence of no prerequisites.
-- Courses without a CUReviews rating do not pass a strict difficulty-threshold filter as verified matches.
-- A catalog page mentioning a course outside a qualifying-requirements context does not automatically make it eligible for a minor.
-- HTTP errors, malformed upstream data, and Ollama timeouts produce user-friendly errors rather than fabricated recommendations.
+| Pipeline Stage | Required Tests | Failure Action |
+|---------------|---------------|----------------|
+| Pre-commit (local) | Unit tests | Fix before committing |
+| Pre-demo (manual) | Smoke test: start Ollama and Streamlit, run each journey once | Fix before the demo |
 
+## Example Code Patterns
 
-## Prohibited Libraries and Practices
+### Typical Endpoint: Tool Wrapper
 
+This "endpoint" is a tool wrapper: a function the LLM can call that validates its arguments, makes one request to a fixed allow-listed host, and returns validated, citable data. Every tool (roster, CU Reviews, catalog) follows this pattern.
 
-| Prohibited | Reason | Use Instead |
-| --- | --- | --- |
-| `eval()`, `exec()`, arbitrary execution of model-produced code | Security and correctness risk | Typed Pydantic tool arguments and explicit Python service functions |
-| `requests` inside async request paths | Blocking I/O | `httpx.AsyncClient` |
-| Flask or Django | Adds a second, unnecessary backend framework | FastAPI |
-| `pip`, Poetry, Conda for project workflows | Inconsistent dependency environments | `uv` and a committed lockfile |
-| Selenium or browser automation for ordinary catalog access | Unnecessary overhead and potentially intrusive site access | `httpx` plus Beautiful Soup on approved public pages |
-| Unrestricted URL fetches from model output | SSRF and inappropriate crawling risk | Approved-host allowlist and validated URLs |
-| Blind reliance on LLM output for numeric filtering/schedule checks | Non-deterministic accuracy | Tested Python filters and interval comparison |
-| Hardcoded API secrets or user credentials | Privacy and security risk | Local `.env` excluded from Git; preferably avoid credentials altogether |
-| Broad scraping or bypassing anti-bot controls | Reliability and permission concerns | Official APIs or explicitly permitted narrow retrieval |
-
-
-## Security, Privacy, and Reliability Basics
-
-
-- Bind local services to loopback interfaces; do not expose the backend or Ollama endpoint publicly by default.
-- Use HTTPS for external data access, plus timeouts, bounded retries, source-level caching, and a Cornell API rate limiter.
-- Restrict outgoing requests to approved external hosts. Validate course identifiers, subject codes, roster codes, URL paths, request lengths, and tool arguments.
-- Treat all retrieved web content and student prompts as **untrusted input**. Ignore instructions embedded in retrieved data that ask the agent to change its behavior.
-- Avoid Cornell NetID authentication, transcript uploads, and storage of sensitive academic records in MVP.
-- Do not log raw prompts by default; redact unnecessary personal information from error logs.
-- Prevent prompt-injection-driven tool use, infinite tool loops, and unbounded context by limiting calls and retrieved text length.
-- Present retrieved facts with source URL and retrieval timestamp when practical; disclose partial source failures and catalog ambiguities.
-
-
-## Example 1: Typical FastAPI Endpoint
-
-
-The endpoint uses dependency injection so that the recommendation service can be mocked in tests. `AdvisorService` and `AdvisorAnswer` are application-specific types to be implemented during Construction.
-
+The final product may have more features or different features than what is described here, this is just a baseline for the type of code/style of code that should be written.
 
 ```python
-from typing import Annotated
+# src/aidvisor/tools/roster.py
+import time
+import httpx
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
+ROSTER_BASE_URL = "https://classes.cornell.edu/api/2.0"  # fixed host; the model never picks URLs
+MIN_INTERVAL_S = 1.0  # Roster API usage limit: no more than 1 request per second
+_last_call = 0.0
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+class RosterError(Exception):
+    """Raised when the roster cannot be reached or returns unusable data."""
 
+class SearchCoursesArgs(BaseModel):
+    """Validated arguments for the search_courses tool."""
 
-from cornell_advisor.services.advisor import AdvisorService, get_advisor_service
-from cornell_advisor.models.responses import AdvisorAnswer
+    roster: str = Field(pattern=r"^(FA|WI|SP|SU)\d{2}$", description="Semester code, e.g. FA26")
+    subject: str = Field(pattern=r"^[A-Za-z]{2,6}$", description="Subject code, e.g. INFO")
+    max_credits: int | None = Field(default=None, ge=1, le=12)
 
+    @field_validator("subject")
+    @classmethod
+    def _uppercase(cls, v: str) -> str:
+        return v.upper()
 
-router = APIRouter(prefix="/v1")
+class Course(BaseModel):
+    code: str  # "INFO 1200"
+    title: str
+    prereq: str | None
+    credits_max: float | None
+    last_terms_offered: list[str]  # e.g. ["2026SP", "2025FA"]
+    source_url: str  # every fact the agent states must cite a source
 
+def search_courses(args: SearchCoursesArgs, client: httpx.Client | None = None) -> list[Course]:
+    """Return classes for one subject and roster, filtered by the validated arguments."""
+    global _last_call
+    time.sleep(max(0.0, MIN_INTERVAL_S - (time.monotonic() - _last_call)))  # rate limit
+    _last_call = time.monotonic()
 
+    try:
+        resp = (client or httpx).get(
+            f"{ROSTER_BASE_URL}/search/classes.json",
+            params={"roster": args.roster, "subject": args.subject},
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise RosterError(f"Roster request failed: {exc}") from exc
+    if payload.get("status") != "success":
+        raise RosterError(f"Roster returned status {payload.get('status')!r}")
 
+    courses = []
+    for raw in payload["data"]["classes"]:
+        units = [g["unitsMaximum"] for g in raw.get("enrollGroups") or [] if g.get("unitsMaximum")]
+        terms = raw.get("lastTermsOffered") or ""
+        courses.append(Course(
+            code=f'{raw["subject"]} {raw["catalogNbr"]}',
+            title=raw.get("titleLong", ""),
+            prereq=raw.get("catalogPrereq") or None,
+            credits_max=max(units) if units else None,
+            last_terms_offered=[t.strip() for t in terms.split(",") if t.strip()],
+            source_url=f'https://classes.cornell.edu/browse/roster/{args.roster}'
+                       f'/class/{raw["subject"]}/{raw["catalogNbr"]}',
+        ))
+    if args.max_credits is not None:  # credits are not an API parameter, so filter here
+        courses = [c for c in courses if c.credits_max is None or c.credits_max <= args.max_credits]
+    return courses
 
-class AdvisorRequest(BaseModel):
-   question: str = Field(min_length=1, max_length=2000)
-   roster: str = Field(default="FA26", pattern=r"^(FA|SP|SU|WI)\d{2}$")
-   completed_courses: list[str] = Field(default_factory=list, max_length=40)
+# Schema the LLM sees (Ollama tool format), generated from the same Pydantic model
+SEARCH_COURSES_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "search_courses",
+        "description": "List Cornell classes for one subject in one semester, with credits, "
+        "prerequisites, and recent terms offered.",
+        "parameters": SearchCoursesArgs.model_json_schema(),
+    },
+}
 
-
-
-
-@router.post("/advise", response_model=AdvisorAnswer)
-async def advise(
-   request: AdvisorRequest,
-   service: Annotated[AdvisorService, Depends(get_advisor_service)],
-) -> AdvisorAnswer:
-   return await service.answer(
-       question=request.question,
-       roster=request.roster,
-       completed_courses=request.completed_courses,
-   )
+def handle_search_courses(raw_args: dict) -> dict:
+    """Entry point called by the agent loop. Errors go back to the model as data, not crashes."""
+    try:
+        courses = search_courses(SearchCoursesArgs.model_validate(raw_args))
+    except ValidationError as exc:
+        return {"error": f"Invalid arguments: {exc}"}
+    except RosterError as exc:
+        return {"error": str(exc), "hint": "Tell the student the roster is unavailable; do not guess."}
+    return {"courses": [c.model_dump() for c in courses]}
 ```
 
+**Pattern notes**
+- Failures return as data so the agent can recover or tell the student, instead of crashing or making something up.
+- The `httpx.Client` can be injected, which lets tests mock the API with `respx`.
+- Each result carries a `source_url` for the citation rule.
 
-## Example 2: Deterministic Course-Filtering Function
+### Typical Function: Deterministic Plan Checker
 
-
-This example represents only the strict numerical portion of course filtering; prerequisite and program-policy claims require the source-aware checks described above.
-
+Plan validity is checked by ordinary code, never by trusting the model. This pure function has no network, no LLM, and no side effects, so it is easy to test.
 
 ```python
-from dataclasses import dataclass
+# src/aidvisor/planning/validator.py
+from typing import Literal
+
+from pydantic import BaseModel
 
 
+class Violation(BaseModel):
+    kind: Literal["missing_prereq", "forbidden_overlap"]
+    course: str
+    detail: str
 
 
-@dataclass(frozen=True)
-class CourseSummary:
-   code: str
-   level: int
-   difficulty: float | None
+def check_plan(
+    semesters: list[list[str]],
+    prereqs: dict[str, set[str]],
+    forbidden_overlaps: set[frozenset[str]],
+    completed: set[str] | None = None,
+) -> list[Violation]:
+    """Return every prerequisite and forbidden-overlap violation in an ordered plan.
 
-
-
-
-def filter_courses(
-   courses: list[CourseSummary],
-   *,
-   max_level_exclusive: int,
-   max_difficulty_exclusive: float | None = None,
-) -> list[CourseSummary]:
-   """Return courses that satisfy all verifiable strict constraints."""
-   matches: list[CourseSummary] = []
-   for course in courses:
-       if course.level >= max_level_exclusive:
-           continue
-       if max_difficulty_exclusive is not None:
-           if course.difficulty is None:
-               continue
-           if course.difficulty >= max_difficulty_exclusive:
-               continue
-       matches.append(course)
-   return matches
+    A prerequisite must be completed in an EARLIER semester (or before the plan starts).
+    """
+    taken = set(completed or ())
+    violations: list[Violation] = []
+    for term in semesters:
+        for course in term:
+            missing = prereqs.get(course, set()) - taken
+            if missing:
+                violations.append(
+                    Violation(kind="missing_prereq", course=course,
+                              detail=f"requires {', '.join(sorted(missing))} first")
+                )
+            # compare with earlier courses and later courses in this term, so each pair is reported once
+            for other in sorted(taken | {c for c in term if c > course}):
+                if frozenset((course, other)) in forbidden_overlaps:
+                    violations.append(
+                        Violation(kind="forbidden_overlap", course=course,
+                                  detail=f"forbidden overlap with {other}")
+                    )
+        taken |= set(term)
+    return violations
 ```
 
+**Pattern notes**
+- Typed inputs and outputs, with results as data (`Violation`) so the agent can explain problems to the student.
+- Prerequisites arrive as structured data (`dict[str, set[str]]`). The roster returns prerequisites as free text, so how that text becomes structured data is a Construction decision.
 
-## Example 3: pytest Tests
-
+### Typical Test: Tool Wrapper with Mocked HTTP
 
 ```python
-from cornell_advisor.services.filters import CourseSummary, filter_courses
+# tests/unit/test_roster.py
+import httpx
+import pytest
+import respx
+
+from aidvisor.tools import roster
+from aidvisor.tools.roster import (
+    ROSTER_BASE_URL, RosterError, SearchCoursesArgs, handle_search_courses, search_courses,
+)
+
+# Trimmed copy of a recorded response. Replace with a real recording in tests/fixtures/.
+FIXTURE = {
+    "status": "success",
+    "data": {"classes": [{
+        "subject": "INFO", "catalogNbr": "1200", "titleLong": "Information Ethics, Law, and Policy",
+        "description": "Explores ethics of information technology.",
+        "catalogPrereq": "", "catalogCoreq": "", "lastTermsOffered": "2026SP, 2025FA",
+        "enrollGroups": [{"unitsMaximum": 3}],
+    }]},
+}
+URL = f"{ROSTER_BASE_URL}/search/classes.json"
 
 
+@pytest.fixture(autouse=True)
+def no_rate_limit_delay(monkeypatch):
+    monkeypatch.setattr(roster, "MIN_INTERVAL_S", 0)  # keep tests fast
 
 
-def test_filters_course_level_and_difficulty() -> None:
-   courses = [
-       CourseSummary(code="INFO 2950", level=2000, difficulty=3.5),
-       CourseSummary(code="INFO 5100", level=5000, difficulty=2.0),
-       CourseSummary(code="INFO 3300", level=3000, difficulty=4.2),
-   ]
-   result = filter_courses(
-       courses,
-       max_level_exclusive=5000,
-       max_difficulty_exclusive=4.0,
-   )
-   assert [course.code for course in result] == ["INFO 2950"]
+@respx.mock
+def test_search_courses_parses_fields_and_source_url():
+    route = respx.get(URL).mock(return_value=httpx.Response(200, json=FIXTURE))
+
+    courses = search_courses(SearchCoursesArgs(roster="FA26", subject="info"))
+
+    assert route.calls.last.request.url.params["subject"] == "INFO"  # normalized to uppercase
+    assert courses[0].code == "INFO 1200"
+    assert courses[0].last_terms_offered == ["2026SP", "2025FA"]
+    assert courses[0].source_url.endswith("/roster/FA26/class/INFO/1200")
 
 
+@respx.mock
+def test_search_courses_filters_by_max_credits():
+    respx.get(URL).mock(return_value=httpx.Response(200, json=FIXTURE))
+    assert search_courses(SearchCoursesArgs(roster="FA26", subject="INFO", max_credits=2)) == []
 
 
-def test_missing_rating_is_not_a_verified_match() -> None:
-   courses = [CourseSummary(code="INFO 2040", level=2000, difficulty=None)]
-   result = filter_courses(
-       courses,
-       max_level_exclusive=5000,
-       max_difficulty_exclusive=4.0,
-   )
-   assert result == []
+@respx.mock
+def test_search_courses_timeout_raises_roster_error():
+    respx.get(URL).mock(side_effect=httpx.ConnectTimeout("timed out"))
+    with pytest.raises(RosterError):
+        search_courses(SearchCoursesArgs(roster="FA26", subject="INFO"))
+
+
+def test_handler_rejects_invalid_arguments_without_calling_network():
+    result = handle_search_courses({"roster": "Fall 2026", "subject": "INFO"})  # no mock: a call would fail
+    assert "Invalid arguments" in result["error"]
 ```
 
-
-The example codes and numeric ratings above are **test fixtures only**, not claims about current Cornell offerings or actual CUReviews ratings.
-
-
-## MVP Build Sequence
-
-
-1. Establish repository, AI-DLC v1.0.1 rules, and required Inception documentation.
-2. Implement normalized course models and Cornell roster integration, with rate limiting and mocked tests.
-3. Build deterministic course filtering, basic schedule-conflict checking, and source metadata.
-4. Integrate the selected catalog pages and a CUReviews adapter (or a documented unavailable-source fallback).
-5. Connect Ollama LFM3 with constrained tool calls/intent parsing and evidence-grounded responses.
-6. Add Streamlit chat/table interface, tests, evaluation prompts, and local demo instructions.
-
-
-## Open Technical Decisions
-
-
-- Validate CUReviews access method, response schema, usage permissions, and rating fields before committing to live integration.
-- Benchmark LFM3 tool calls and structured responses on actual team laptops; prefer orchestration fallback if accuracy is insufficient.
-- Choose a fixed catalog year and small initial program set for reliable requirement checks.
-- Decide whether a memory-only cache suffices or a small local SQLite cache is warranted.
-- Decide whether course ranking should be deterministic, LLM-generated with citations, or a clearly separated combination.
-
-
-## Official References
-
-
-- Cornell Course Roster API: https://classes.cornell.edu/content/FA26/api-details
-- Cornell Program Catalog: https://catalog.cornell.edu/programs/
-- CUReviews course example: https://www.cureviews.org/course/CS/2110
-- Proposed Ollama model: https://ollama.com/library/lfm3
-- Academic advising: https://www.undergrad.cornell.edu/students/advising/college-academic-advising
-
-
-
+**Pattern notes**
+- `respx` mocks all HTTP, so tests never contact Cornell, and the autouse fixture removes the 1-second rate-limit delay.
+- Tests cover the happy path, a filter, a network failure, and bad model input, which are the four behaviors every tool wrapper should have tests for.
